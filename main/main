@@ -1,0 +1,55 @@
+#include <stdio.h>
+#include "ultrasonic.h"
+#include "led.h"
+#include "Buzzer.h"
+#include "button.h"
+#include "freertos/FreeRTOS.h"if
+#include "freertos/task.h"
+#include "esp_sleep.h"
+
+#define LED_PIN_RED 6
+#define LED_PIN_YELLOW 7
+#define BUZZER_PIN 19 
+#define BUTTON_PIN GPIO_NUM_5
+#define TRIG_PIN GPIO_NUM_4
+#define ECHO_PIN GPIO_NUM_23
+
+void app_main(void) {
+    led_config_t led_RED = { .pin = LED_PIN_RED, .is_active_low = false };
+    led_config_t led_YELLOW = { .pin = LED_PIN_YELLOW, .is_active_low = false };
+    buzzer_config_t buzzer = { .pin = BUZZER_PIN, .is_active_low = false };
+    button_config_t button = { .pin = BUTTON_PIN, .pullup_enabled = true, .system_active = false };
+    ultrasonic_config_t ultrasonic = { .trig_pin = TRIG_PIN, .echo_pin = ECHO_PIN };
+
+
+    led_init(&led_RED);
+    led_init(&led_YELLOW);
+    buzzer_init(&buzzer);
+    ultrasonic_init(&ultrasonic);
+    button_init(&button);
+
+    printf("Tryck på knappen för att aktivera.\n");
+
+    while (!button_is_active(&button)) {
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+
+    while (1) {
+        if (!button_is_active(&button)) {
+            button_handle_sleep(&button);
+            
+        }
+
+        float distance = ultrasonic_measure();
+        printf("Avstånd: %.2f cm\n", distance);
+
+        led_set(distance <= 20.0, &led_RED);
+        led_set(distance <= 40.0, &led_YELLOW);
+        buzzer_set(distance <= 20.0, &buzzer);
+
+        led_update(&led_RED);
+        led_update(&led_YELLOW);
+
+        vTaskDelay(pdMS_TO_TICKS(500));
+    }
+}
